@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+ntplib
+py-wifi-helper>=1.0.0
+pywifi>=1.1.12
