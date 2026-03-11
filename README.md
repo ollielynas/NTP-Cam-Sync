@@ -1,2 +1,0 @@
-# NTP-Cam-Sync
-
