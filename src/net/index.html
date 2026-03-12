@@ -22,54 +22,10 @@
     </head>
     <body>
         <div id="clock">00:00:00.000</div>
-        <button onclick="window.syncTime()">sync time</button>
-        <script>
-            let serverOffset = 0;
-
-            // 1. NTP Sync Logic
-            async function syncTime() {
-                try {
-                    const t0 = Date.now();
-                    const response = await fetch("/api/time");
-                    const { t1, t2 } = await response.json();
-                    const t3 = Date.now();
-
-                    // Standard NTP Offset Calculation
-                    serverOffset = (t1 - t0 + (t2 - t3)) / 2;
-                    console.log(
-                        `Synced with Rust server. Offset: ${serverOffset}ms`,
-                    );
-                } catch (e) {
-                    console.error("Sync failed", e);
-                }
-            }
-            window.syncTime = syncTime;
-
-            // 2. High-Performance Display Loop
-            function updateDisplay() {
-                const clockElement = document.getElementById("clock");
-
-                // Get the "Real" time according to the server
-                const now = new Date(Date.now() + serverOffset);
-
-                // Format: HH:MM:SS.mmm
-                const hours = String(now.getHours()).padStart(2, "0");
-                const minutes = String(now.getMinutes()).padStart(2, "0");
-                const seconds = String(now.getSeconds()).padStart(2, "0");
-                const millis = String(now.getMilliseconds()).padStart(3, "0");
-
-                clockElement.textContent = `${hours}:${minutes}:${seconds}.${millis}`;
-
-                // Queue the next frame (usually 60 times per second)
-                requestAnimationFrame(updateDisplay);
-            }
-
-            // Initialise
-            syncTime(); // Get the offset
-            updateDisplay(); // Start the live loop
-
-            // Re-sync every 30 seconds to prevent "Clock Drift"
-            setInterval(syncTime, 30000);
-        </script>
+        <button id="LTC-Toggle" onclick="window.pause_play_LTC_timecodes()">
+            enable LTC
+        </button>
+        <div id="info"></div>
+        <script src="static/index.js"></script>
     </body>
 </html>
