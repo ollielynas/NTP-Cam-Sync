@@ -85,8 +85,8 @@ async fn main() {
         .route("/get/{key}", get(get_metadata_no_anyhow))
         .nest_service("/static", serve_static)
         .nest_service("/file", serve_dir_service)
-        .route("/upload", post(upload_file_streaming))
-        .layer(DefaultBodyLimit::max(5000 * 1024 * 1024)); // 5000MB
+        // .route("/upload", post(upload_file_streaming))
+        // .layer(DefaultBodyLimit::max(5000 * 1024 * 1024)); // 5000MB
 
     ;
 
