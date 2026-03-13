@@ -13,15 +13,19 @@ pub struct NtpResponse {
     t2: u128, // Server Transmit Time
 }
 
-
-
-pub async fn ntp_handler() -> Json<NtpResponse> {
+pub fn get_current_time() -> u128 {
     let mut now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     if START_TIME.get().is_none() {
         START_TIME.set(SystemTime::now().duration_since(UNIX_EPOCH).unwrap());
     }
     now -= START_TIME.get().unwrap_or(&Duration::ZERO).as_millis();
     now += 570000;
+    return now;
+}
+
+pub async fn ntp_handler() -> Json<NtpResponse> {
+    let now = get_current_time();
     // In a local network, t1 and t2 are essentially the same
+    // TODO: fix this to work fr fr
     Json(NtpResponse { t1: now, t2: now })
 }

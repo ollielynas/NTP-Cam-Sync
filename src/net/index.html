@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
     <head>
-        <title>Server Synced Clock</title>
+        <title>NTP Cam Link</title>
         <style>
             body {
                 font-family: monospace;
@@ -18,14 +18,157 @@
             #clock {
                 font-size: 1rem;
             }
+
+            .tab {
+                padding-top: 1em;
+            }
+
+
+
+        </style>
+        <style id = "dropdown-css">
+            .director_tab {
+                display: none;
+            }
+            .audio_tab {
+                display: none;
+            }
+            .video_tab {
+                display: none;
+            }
+            .timecode_tab {
+                display: none;
+            }
+            .admin_tab {
+                display: none;
+            }
         </style>
     </head>
     <body>
         <div id="clock">00:00:00.000</div>
-        <button id="LTC-Toggle" onclick="window.pause_play_LTC_timecodes()">
-            enable LTC
-        </button>
+        <div id="current-project">the director has not selected a project</div>
+        <div id="current-day">the director has not selected a day</div>
+        <div id="current-scene">the director has not selected a scene</div>
+        <div id="current-take">the director has not selected a take</div>
+        <br>
+        <div id="current-operator">you have not desegenated yourself as a spesefic operator</div>
+        <br>
+        <div id="green-light-to-record">display if ok to record</div>
+        <select id="role-dropdown">
+            <option value="timecode">Timecode Out</option>
+            <option value="audio">Record Audio</option>
+            <option value="video">Record Video</option>
+            <option value="director">Director</option>
+            <option value="admin">Admin</option>
+        </select>
+        <!--this should nor disable recording, just act as a visual indecator-->
+        <div class="tab, director_tab" id="AdminOptions">
+            <label for="project">Choose a Project:</label>
+            <div id="new_project_container">
+            <select id="project-dropdown" name="">
+                <!--get existing projects with window.get_existing_projects()-->
+            </select>
+            <button onclick="window.add_to_metadata_array('project_options')">add project</button>
+            <button onclick="if (confirm('are you sure you want to PERMANENTLY delete all project names?')) {window.set_metadata_value('project_options', '')}">clear projects</button>
+            </div>
+            <br>
+            <label for="scene">Choose a Scene:</label>
+            <div id="new_scene_input">
+            <select id="scene-dropdown" name="">
+                <!--get existing projects with window.get_scenes()-->
+            </select>
+            <button onclick="window.add_to_metadata_array('scene_options')">add scene</button>
+            <button onclick="if (confirm('are you sure you want to PERMANENTLY delete all scene names?')) {window.set_metadata_value('scene_options', '')}">clear scenes</button>
+            </div>
+            <br>
+            <label for="day">day:</label>
+            <input name="day" id="day-input" type="number"></input>
+            <br>
+            <label for="take">take:</label>
+            <input name="take" id="take-input" type="number"></input>
+
+                <br>
+
+            <button onclick="window.send_admin_settings_update()">send updated settings to server</button>
+            <br>
+            <button onclick="window.send_green_light_toggle()">toggle green light for recording</button>
+            <div>
+                <!--use window.get_current_operators() to display a list of current operators-->
+            </div>
+        </div>
+        <div  class="tab audio_tab video_tab" id="OperatorSettings">
+            <br>
+            <label for="scene">Change Operator:</label>
+            <div id="new_op_input">
+            <select id="operator-dropdown" name="">
+                <!--get existing projects with window.get_scenes()-->
+            </select>
+            <button onclick="window.add_to_metadata_array('operator_options')">add operator</button>
+            <button onclick="if (confirm('are you sure you want to PERMANENTLY delete all operator names? (this will remove them all devices and is highly recommended you do not do this mid production)')) {window.set_metadata_value('operator_options', '')}">remove all operators</button>
+            </div>
+            <button onclick="window.save_operator_changes()">Save change</button>
+        </div>
+
+        <div class="tab audio_tab" id="RecordAudio">
+            <!--use window.is_playing_LTC()-->
+            <button id="ToggleRecording" onclick="window.startRecording()">
+                start recording
+            </button>
+            <button id="ToggleRecording" onclick="window.stopRecording()">
+                stop recording
+            </button>
+            <button>calculate round trip delay</button>
+            <div id="audio-visualisation">
+                <!--put visulisaiton here but dont use any external libs-->
+            </div>
+        </div>
+        <div class="tab video_tab" id="RecordVideo">
+            <!--use window.is_playing_LTC()-->
+            <button id="ToggleRecordingVideo" onclick="window.startRecording()">
+                start recording
+            </button>
+            <button id="ToggleRecordingVideo" onclick="window.stopRecording()">
+                stop recording
+            </button>
+            <input type="checkbox">add LTC as extra track</input>
+            <div id="video-recording-info">
+                <!--put visulisaiton here but dont use any external libs-->
+            </div>
+        </div>
+        <div class="tab timecode_tab" id="LTC-Out">
+            <!--use window.is_playing_LTC()-->
+            <button id="LTC-Toggle" onclick="window.pause_play_LTC_timecodes()">
+                toggle LTC
+            </button>
+        </div>
+        <div class="tab admin_tab" id="admin">
+            <!--use window.is_playing_LTC()-->
+
+        </div>
+        <!--shows debug info like "loading file.. ect.."-->
+        <div id="files">
+            <div id="file-list">
+
+            </div>
+            <!--<button onclick="window.upload_files_to_server()">upload files to server</button>-->
+        </div>
         <div id="info"></div>
         <script src="static/index.js"></script>
+        <script src="static/audio.js"></script>
+        <script src="static/mux.js"></script>
+        <script src="static/files.js"></script>
+        <script src="static/api.js"></script>
+        <script>
+        document.getElementById('role-dropdown').addEventListener('change', function() {
+            const role = this.value;
+
+            document.querySelectorAll('.director_tab, .audio_tab, .video_tab, .timecode_tab, .admin_tab')
+                .forEach(el => el.style.display = 'none');
+
+            document.querySelectorAll('.' + role + '_tab')
+                .forEach(el => el.style.display = 'block');
+        });
+        document.getElementById('role-dropdown').dispatchEvent(new Event('change'));
+        </script>
     </body>
 </html>

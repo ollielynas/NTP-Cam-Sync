@@ -1,8 +1,11 @@
-let serverOffset = 0;
+window.serverOffset = 0;
 console.log("loaded js");
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
+const recordingDest = audioCtx.createMediaStreamDestination();
+window.recordingDest = recordingDest;
+window.recordingIncludesLTC = true;
 
 // Chunk cache: key = "H_M", value = { buffer, promise }
 const chunkCache = new Map();
@@ -19,6 +22,10 @@ function chunkKey(hour_min_id) {
   return `${hour_min_id[0]}_${hour_min_id[1]}`;
 }
 
+window.is_playing_LTC = () => {
+  return isPlaying;
+};
+
 function nextChunkId(id) {
   const nextMin = (id[1] + 1) % 6;
   const nextHour = nextMin === 0 ? id[0] + 1 : id[0];
@@ -26,25 +33,27 @@ function nextChunkId(id) {
 }
 
 function currentChunkId() {
-  const now = new Date(Date.now() + serverOffset);
-  let hours = now.getHours();
-  if (hours >= 12) hours -= 12;
-  return [hours, Math.floor(now.getMinutes() / 10)];
+  const serverMs = Date.now() + serverOffset;
+  const totalSeconds = Math.floor(serverMs / 1000);
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60) % 12;
+  const minutes = totalMinutes % 60;
+  return [hours, Math.floor(minutes / 10)];
 }
 
 function getCurrentOffsetInChunk() {
-  const now = new Date(Date.now() + serverOffset);
+  const serverMs = Date.now() + serverOffset;
+  const totalSeconds = Math.floor(serverMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const seconds = totalSeconds % 60;
+  const ms = serverMs % 1000;
   const chunkStartMinutes = currentChunkId()[1] * 10;
-  return (
-    (now.getMinutes() - chunkStartMinutes) * 60 +
-    now.getSeconds() +
-    now.getMilliseconds() / 1000
-  );
+  return (minutes - chunkStartMinutes) * 60 + seconds + ms / 1000;
 }
 
-function get_url_from_hour_min_id(id) {
+window.get_url_from_hour_min_id = (id) => {
   return `file/LTC_${String(id[0]).padStart(2, "0")}_${String(id[1] * 10).padStart(2, "0")}_00_00__10mins_2997_df.wav`;
-}
+};
 
 // ── Buffer loading ─────────────────────────────────────────────────────────────
 
@@ -125,6 +134,7 @@ async function schedulePlayback(chunkId, offsetInChunk) {
   const src = audioCtx.createBufferSource();
   src.buffer = buffer;
   src.connect(audioCtx.destination);
+  if (window.recordingIncludesLTC) src.connect(window.recordingDest);
 
   const primaryStartAudio = audioCtx.currentTime;
   src.start(primaryStartAudio, offsetInChunk);
@@ -145,6 +155,7 @@ async function schedulePlayback(chunkId, offsetInChunk) {
     const followSrc = audioCtx.createBufferSource();
     followSrc.buffer = nextBuffer;
     followSrc.connect(audioCtx.destination);
+    if (window.recordingIncludesLTC) followSrc.connect(window.recordingDest);
     followSrc.start(primaryEndAudio, 0); // starts exactly when primary ends
 
     // When *this* source ends, schedule the one after it
@@ -232,31 +243,31 @@ function updateDisplay() {
   syncAudioToClockIfNeeded();
 
   // Preload only when the minute changes (not 60× per second)
-  const now = new Date(Date.now() + serverOffset);
-  if (now.getMinutes() !== lastPreloadMinute) {
-    lastPreloadMinute = now.getMinutes();
+  const serverMs = Date.now() + serverOffset;
+  const currentMinute = Math.floor(serverMs / 60000) % 60;
+  if (currentMinute !== lastPreloadMinute) {
+    lastPreloadMinute = currentMinute;
     preloadChunks();
   }
 
   const clockElement = document.getElementById("clock");
   const infoElem = document.getElementById("info");
 
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  const millis = String(now.getMilliseconds()).padStart(3, "0");
+  const totalSeconds = Math.floor(serverMs / 1000);
+  const millis = serverMs % 1000;
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
 
-  clockElement.innerHTML = `${hours}:${minutes}:${seconds}.${millis}`;
-
+  clockElement.innerHTML = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(Math.floor(millis)).padStart(3, "0")}`;
   const currentKey = chunkKey(currentChunkId());
   const nextKey = chunkKey(nextChunkId(currentChunkId()));
   const isLoading = [...chunkCache.entries()]
     .filter(([k]) => k === currentKey || k === nextKey)
     .some(([, v]) => !v.buffer);
 
-  infoElem.innerHTML =
-    (isPlaying ? "<br>playing ltc" : "") +
-    (isLoading ? "<br>loading audio…" : "");
+  infoElem.innerHTML = isLoading ? "<br>loading audio…" : "";
 
   requestAnimationFrame(updateDisplay);
 }
